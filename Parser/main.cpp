@@ -11,6 +11,7 @@
 
 namespace Parser
 {
+
     namespace Symbol
     {
         class Symbol
@@ -24,6 +25,8 @@ namespace Parser
         private:
             std::string m_symbol;
         };
+
+        Symbol::~Symbol() = default;
 
         class NonTerminal final : public Symbol
         {
@@ -58,8 +61,10 @@ namespace Parser
             virtual ~Node() = 0;
 
             virtual std::unique_ptr<Node> clone() const = 0;
-            virtual Symbol::Symbol *symbol() const = 0;
+            virtual Symbol::Symbol const *symbol() const = 0;
         };
+
+        Node::~Node() = default;
 
         class NonTerminalNode final : public Node
         {
@@ -83,7 +88,8 @@ namespace Parser
                 return std::make_unique<NonTerminalNode>(m_symbol, std::move(copy));
             }
         
-        
+            Symbol::NonTerminal const *symbol() const override { return m_symbol; }
+
         private:
             Symbol::NonTerminal const *m_symbol;
             std::vector<std::unique_ptr<Node>> m_children;
@@ -102,11 +108,14 @@ namespace Parser
                 return std::make_unique<TerminalNode>(m_symbol);
             }
 
+            Symbol::Terminal const *symbol() const override { return m_symbol; }
+        
         private:
             Symbol::Terminal const *m_symbol;
         
         };
     }
+    std::vector<std::unique_ptr<Tree::Node>> extractTopOfStack(std::stack<std::unique_ptr<Tree::Node>> &stack, size_t const size);
 
     class Rule final
     {
@@ -132,11 +141,19 @@ namespace Parser
             virtual ~Action() = 0;
         };
         
+        Action::~Action() = default;
+
         class Fail final : public Action
         {
         public:
             Fail() {}
             ~Fail() = default;
+        };
+        class Accept final : public Action
+        {
+        public:
+            Accept() {}
+            ~Accept() = default;
         };
 
         class Shift final : public Action
@@ -170,7 +187,7 @@ namespace Parser
         {
             if(action == nullptr)
             {
-                return Type::Accept; // Fail?
+                return Type::Fail; // Fail?
             }
             else if(dynamic_cast<Shift const *>(action) != nullptr)
             {
@@ -179,6 +196,10 @@ namespace Parser
             else if(dynamic_cast<Reduce const *>(action) != nullptr)
             {
                 return Type::Reduce;
+            }
+            else if(dynamic_cast<Accept const *>(action) != nullptr)
+            {
+                return Type::Accept;
             }
             else if(dynamic_cast<Fail const *>(action) != nullptr)
             {
@@ -217,7 +238,7 @@ namespace Parser
             auto outer = m_table.find(input);
             if(outer == m_table.end())
             {
-                outer = m_table.emplace(input, std::map<Symbol::Symbol *, std::unique_ptr<Action::Action>>()).first;
+                outer = m_table.emplace(input, std::map<Symbol::Symbol const *, std::unique_ptr<Action::Action>>()).first;
             }
 
             auto inner = outer->second.find(topOfStack);
@@ -251,7 +272,7 @@ namespace Parser
             std::stack<std::unique_ptr<Tree::Node>> stack;
             auto currentSymbol = symbols.begin();
 
-            while(currentSymbol != symbols.end() || stack.empty())
+            while(currentSymbol != symbols.end() || !stack.empty())
             {
                 auto symbol = currentSymbol != symbols.end() ? *currentSymbol : &Symbol::s_eof;
                 auto topOfStack = !stack.empty() ? stack.top().get() : nullptr;
@@ -282,6 +303,7 @@ namespace Parser
                 }
             }
 
+            throw std::logic_error("Ran out of something");
         }
 
     private:
@@ -293,9 +315,9 @@ namespace Parser
     {
         std::vector<std::unique_ptr<Tree::Node>> result;
         result.reserve(size);
-        for(int i = 0; i < size; ++i)
+        for(std::size_t i = 0; i < size; ++i)
         {
-            result.emplace_back(stack.top());
+            result.emplace_back(std::move(stack.top()));
             stack.pop();
         }
         std::reverse(result.begin(), result.end());
@@ -309,6 +331,8 @@ int main(int, char**)
     using Parser::Symbol::Terminal;
     using Parser::Symbol::NonTerminal;
     using Parser::Rule;
+
+    auto &eof = Parser::Symbol::s_eof;
 
     using namespace Parser::Action;
 
@@ -347,9 +371,21 @@ int main(int, char**)
     table.setAction(&times, &Value, std::make_unique<Reduce>(r5));
     table.setAction(&times, &Products, std::make_unique<Shift>());
     
-    table.setAction(&number, &Products, std::make_unique<Shift>());
+    table.setAction(&number, &times, std::make_unique<Shift>());
+
+    table.setAction(&eof, &number, std::make_unique<Reduce>(r6));
+    table.setAction(&eof, &Value, std::make_unique<Reduce>(r4));
+    table.setAction(&eof, &Products, std::make_unique<Reduce>(r2));
+    table.setAction(&eof, &Sums, std::make_unique<Reduce>(r1));
+    table.setAction(&eof, &Assign, std::make_unique<Accept>());
 
 
+
+    Parser::Parser parser(std::move(table));
+
+    std::vector<Terminal const *> input {&id, &equals, &id, &plus, &id, &times, &number};
+
+    auto tree = parser.parse(input);
 
     std::cout << "That's all, folks!\n";
 
