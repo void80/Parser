@@ -12,109 +12,6 @@
 namespace Parser
 {
 
-    namespace Symbol
-    {
-        class Symbol
-        {
-        public:
-            explicit Symbol(std::string symbol) 
-                : m_symbol(std::move(symbol))
-            {}
-            virtual ~Symbol() = 0;
-
-        private:
-            std::string m_symbol;
-        };
-
-        Symbol::~Symbol() = default;
-
-        class NonTerminal final : public Symbol
-        {
-        public:
-            explicit NonTerminal(std::string symbol) 
-                : Symbol(std::move(symbol))
-            {}
-
-            ~NonTerminal() = default;
-        };
-
-        class Terminal : public Symbol
-        {
-        public:
-            explicit Terminal(std::string symbol) 
-                : Symbol(std::move(symbol))
-            {}
-
-            ~Terminal() = default;
-        };
-
-        static Terminal const s_epsilon{std::string{}};
-        static Terminal const s_eof("$");
-
-    }
-
-    namespace Tree
-    {
-        class Node
-        {
-        public:
-            virtual ~Node() = 0;
-
-            virtual std::unique_ptr<Node> clone() const = 0;
-            virtual Symbol::Symbol const *symbol() const = 0;
-        };
-
-        Node::~Node() = default;
-
-        class NonTerminalNode final : public Node
-        {
-        public:
-            explicit NonTerminalNode(Symbol::NonTerminal const *symbol)
-                : m_symbol(symbol)
-                , m_children()
-            {}
-            
-            NonTerminalNode(Symbol::NonTerminal const *symbol, std::vector<std::unique_ptr<Node>> &&children)
-                : m_symbol(symbol)
-                , m_children(std::move(children))
-            {}
-            
-            ~NonTerminalNode() final = default;
-
-            std::unique_ptr<Node> clone() const override
-            {
-                std::vector<std::unique_ptr<Node>> copy;
-                std::transform(m_children.begin(), m_children.end(), std::back_inserter(copy), std::mem_fn(&Node::clone));
-                return std::make_unique<NonTerminalNode>(m_symbol, std::move(copy));
-            }
-        
-            Symbol::NonTerminal const *symbol() const override { return m_symbol; }
-
-        private:
-            Symbol::NonTerminal const *m_symbol;
-            std::vector<std::unique_ptr<Node>> m_children;
-        };
-
-        class TerminalNode final : public Node
-        {
-        public:
-            TerminalNode(Symbol::Terminal const *symbol)
-                : m_symbol(symbol)
-            {}
-            ~TerminalNode() final = default;
-
-            std::unique_ptr<Node> clone() const override
-            {
-                return std::make_unique<TerminalNode>(m_symbol);
-            }
-
-            Symbol::Terminal const *symbol() const override { return m_symbol; }
-        
-        private:
-            Symbol::Terminal const *m_symbol;
-        
-        };
-    }
     std::vector<std::unique_ptr<Tree::Node>> extractTopOfStack(std::stack<std::unique_ptr<Tree::Node>> &stack, size_t const size);
 
     class Rule final
@@ -132,6 +29,8 @@ namespace Parser
         Symbol::NonTerminal *m_lhs;
         std::vector<Symbol::Symbol *> m_rhs;
     };
+
+    
 
     namespace Action
     {
