@@ -18,6 +18,10 @@ namespace Parser
         {
             return !(lhs == rhs);
         }
+        friend bool operator<(State lhs, State rhs)
+        {
+            return lhs.m_index < rhs.m_index;
+        }
 
         State &operator++()
         {

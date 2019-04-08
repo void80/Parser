@@ -121,12 +121,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="actions.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Parser.cpp" />
+    <ClCompile Include="ParserTable.cpp" />
+    <ClCompile Include="StateTable.cpp" />
+    <ClCompile Include="Rule.cpp" />
     <ClCompile Include="symbols.cpp" />
     <ClCompile Include="tree.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="actions.h" />
     <ClInclude Include="Generator.h" />
+    <ClInclude Include="Parser.h" />
+    <ClInclude Include="ParserTable.h" />
+    <ClInclude Include="StateTable.h" />
+    <ClInclude Include="Rule.h" />
     <ClInclude Include="State.h" />
     <ClInclude Include="symbols.h" />
     <ClInclude Include="tree.h" />
